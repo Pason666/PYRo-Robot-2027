@@ -68,6 +68,10 @@ if (ROBOT_ID EQUAL HERO_ID)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/robot/hero)
     target_link_libraries(${CMAKE_PROJECT_NAME}
             Hero)
+elseif (ROBOT_ID EQUAL ENGINEER_ID)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Robot/Engineer)
+    target_link_libraries(${CMAKE_PROJECT_NAME}
+            Engineer)
 elseif (ROBOT_ID EQUAL SUB_HERO_ID)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/robot/sub_hero)
     target_link_libraries(${CMAKE_PROJECT_NAME}

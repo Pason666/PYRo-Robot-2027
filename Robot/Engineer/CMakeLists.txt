@@ -1,8 +1,9 @@
 # =========================================================================
 # 1. 显式定义当前编译的板子类型（在这里切换 ARM_BOARD 或 CHASSIS_BOARD）
 # =========================================================================
-set(BOARD "ARM_BOARD")
-#set(BOARD "CHASSIS_BOARD")
+# set(BOARD "ARM_BOARD")
+# set(BOARD "CHASSIS_BOARD")
+set(BOARD "GIMBAL_BOARD")
 
 
 # =========================================================================
@@ -56,6 +57,21 @@ set(CHASSIS_EXTRA_SOURCES
 
 )
 
+# ===================== GIMBAL_BOARD 扩展源文件 =====================
+set(GIMBAL_EXTRA_SOURCES
+        Gimbal/pyro_screw_gimbal.cpp
+        Gimbal/fsm/pyro_screw_active_state.cpp
+        Gimbal/fsm/pyro_screw_passive_state.cpp
+        Gimbal/fsm/pyro_screw_idle_state.cpp
+        Gimbal/fsm/pyro_screw_calibration_state.cpp
+        Gimbal/fsm/pyro_screw_normal_state.cpp
+        Gimbal/fsm/pyro_screw_autoaim_state.cpp
+        Gimbal/Application/pyro_init_thread.cpp
+        Gimbal/Application/pyro_mission_planer.cpp
+        Gimbal/Application/pyro_gimbal_app.cpp
+)
+
+
 # ===================== 组合最终源文件列表 =====================
 if (BOARD STREQUAL "ARM_BOARD")
     target_sources(Engineer PRIVATE ${BASE_SOURCES} ${ARM_EXTRA_SOURCES})
@@ -78,6 +94,14 @@ elseif (BOARD STREQUAL "CHASSIS_BOARD")
 
     # 为 Engineer 自身添加宏定义
 
+elseif (BOARD STREQUAL "GIMBAL_BOARD")
+    target_sources(Engineer PRIVATE ${BASE_SOURCES} ${GIMBAL_EXTRA_SOURCES})
+    # 针对 GIMBAL_BOARD 的特殊宏定义（作用于 PYRo 目标）
+    target_compile_definitions(PYRo PUBLIC
+            DR16_UART=PYRO_UART5
+    )
+    # 为 Engineer 自身添加宏定义
+
 else()
     message(FATAL_ERROR "Unsupported BOARD type: ${BOARD}. Choose ARM_BOARD or CHASSIS_BOARD.")
 endif()
@@ -92,6 +116,8 @@ target_include_directories(Engineer
         ${CMAKE_CURRENT_SOURCE_DIR}/pyro_chassis_new
         ${CMAKE_CURRENT_SOURCE_DIR}/pyro_chassis_new/Chassis      # 底盘模块头文件
         ${CMAKE_CURRENT_SOURCE_DIR}/pyro_chassis_new/Communication/Chassis_board  # 板间通信
+        ${CMAKE_CURRENT_SOURCE_DIR}/Gimbal                         # 云台模块
+        ${CMAKE_CURRENT_SOURCE_DIR}/Gimbal/Application             # 云台应用层
 
 )
 
