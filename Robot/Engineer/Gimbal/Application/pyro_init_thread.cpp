@@ -33,6 +33,7 @@ extern "C"
         // INS 初始化
         ins_drv = ins_drv_t::get_instance();
         ins_config_t ins_config = {};
+        ins_config.direct = ins_config_t::imu_direct_t::DIRECT_4;
         ins_drv->init(ins_config);
 
 #ifdef DR16_UART

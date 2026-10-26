@@ -69,6 +69,17 @@ set(GIMBAL_EXTRA_SOURCES
         Gimbal/Application/pyro_init_thread.cpp
         Gimbal/Application/pyro_mission_planer.cpp
         Gimbal/Application/pyro_gimbal_app.cpp
+        Booster/pyro_quad_booster.cpp
+        Booster/fsm/pyro_quad_active_state.cpp
+        Booster/fsm/pyro_quad_passive_state.cpp
+        Booster/fsm/pyro_quad_anti_jam_state.cpp
+        Booster/fsm/pyro_quad_busy_state.cpp
+        Booster/fsm/pyro_quad_homing_state.cpp
+        Booster/fsm/pyro_quad_interim_state.cpp
+        Booster/fsm/pyro_quad_ready_state.cpp
+        Booster/fsm/pyro_quad_stall_state.cpp
+        Booster/fsm/pyro_quad_temp_state.cpp
+        Booster/Application/pyro_booster_app.cpp
 )
 
 
@@ -118,6 +129,8 @@ target_include_directories(Engineer
         ${CMAKE_CURRENT_SOURCE_DIR}/pyro_chassis_new/Communication/Chassis_board  # 板间通信
         ${CMAKE_CURRENT_SOURCE_DIR}/Gimbal                         # 云台模块
         ${CMAKE_CURRENT_SOURCE_DIR}/Gimbal/Application             # 云台应用层
+        ${CMAKE_CURRENT_SOURCE_DIR}/Booster                        # 供弹模块
+        ${CMAKE_CURRENT_SOURCE_DIR}/Booster/Application            # 供弹应用层
 
 )
 

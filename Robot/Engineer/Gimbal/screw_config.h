@@ -57,10 +57,11 @@ constexpr float PITCH_MAX_IMU_RAD        = -0.2f;  // IMU 读数最大角度 (ra
 // =========================================================
 // 软限位与防抖动参数
 // =========================================================
-constexpr float PITCH_SOFT_MIN_RAD       = -0.72f; // 软限位最小值（留 0.03 rad 缓冲区，约 1.7°）
+constexpr float PITCH_SOFT_MIN_RAD       = -0.73f; // 软限位最小值（留 0.02 rad 缓冲区，约 1.1°）
 constexpr float PITCH_SOFT_MAX_RAD       = 0.13f;  // 软限位最大值（留 0.02 rad 缓冲区，约 1.1°）
 constexpr float PITCH_DAMPING_ZONE_RAD   = 0.06f; // 阻尼区宽度（3.4°，在接近时开始减速）
-constexpr float PITCH_MIN_GAIN_RATIO     = 0.35f; // 最小增益比例（35%，加强防抖效果）
+constexpr float PITCH_MIN_GAIN_RATIO     = 0.25f; // 最小增益比例（降低到 25%，更强制动）
+constexpr float PITCH_DEADZONE_RAD       = 0.01f; // 死区宽度（最后 0.6° 完全停止响应）
 
 constexpr float YAW_OFFSET_RAD           = -0.074f;
 constexpr float YAW_MIN_RELATIVE_RAD     = -1.5f;  // Yaw 轴相对最小角度(待调整)
