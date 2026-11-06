@@ -18,6 +18,15 @@ constexpr uint32_t EVENT_BIT_ANTI_JAM_START      = (1 << 7);
 constexpr uint32_t EVENT_BIT_ANTI_JAM_STOP       = (1 << 8);
 
 static TaskHandle_t booster_task_handle           = nullptr;
+
+// ========== 导出给其他模块使用 ==========
+extern "C"
+{
+    TaskHandle_t* get_booster_task_handle()
+    {
+        return &booster_task_handle;
+    }
+}
 static pyro::quad_booster_t *quad_booster_ptr     = nullptr;
 static pyro::quad_booster_cmd_t *quad_booster_cmd_ptr = nullptr;
 static pyro::quad_deps_t *quad_deps_ptr           = nullptr;

@@ -24,6 +24,12 @@ struct screw_gimbal_cmd_t final : public cmd_base_t
     float target_pitch;
     float target_yaw;
 
+    // ========== Autoaim 相关字段 ==========
+    bool is_aiming{false};              // 是否正在瞄准目标
+    float aim_imu_yaw_rad{0.0f};        // 自瞄目标 Yaw 轴角度（IMU 坐标系，rad）
+    float aim_imu_pitch_rad{0.0f};      // 自瞄目标 Pitch 轴角度（IMU 坐标系，rad）
+    // ======================================
+
     screw_gimbal_cmd_t()
         : pitch_delta_angle(0.0f), yaw_delta_angle(0.0f),
           trigger_calibration(false), autoaim_mode(false),
@@ -155,6 +161,12 @@ class screw_gimbal_t final
   public:
     using data_ctx_t       = screw_gimbal_data_ctx_t;
     using gimbal_context_t = screw_gimbal_context_t;
+
+    // 调试接口：获取 Pitch 目标量和反馈量
+    float get_pitch_target_rad() const { return _ctx.data.target_pitch_rad; }
+    float get_pitch_feedback_rad() const { return _ctx.data.current_pitch_motor_rad; }
+    float get_pitch_imu_rad() const { return _ctx.data.relative_pitch_rad; }
+    bool get_has_calibrated() const { return _ctx.data.has_initial_calibrated; }
 
   private:
     screw_gimbal_t();

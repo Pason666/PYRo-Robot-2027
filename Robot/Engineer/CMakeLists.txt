@@ -69,6 +69,7 @@ set(GIMBAL_EXTRA_SOURCES
         Gimbal/Application/pyro_init_thread.cpp
         Gimbal/Application/pyro_mission_planer.cpp
         Gimbal/Application/pyro_gimbal_app.cpp
+        Communication/pyro_uart_comm.cpp
         Booster/pyro_quad_booster.cpp
         Booster/fsm/pyro_quad_active_state.cpp
         Booster/fsm/pyro_quad_passive_state.cpp
@@ -110,6 +111,7 @@ elseif (BOARD STREQUAL "GIMBAL_BOARD")
     # 针对 GIMBAL_BOARD 的特殊宏定义（作用于 PYRo 目标）
     target_compile_definitions(PYRo PUBLIC
             DR16_UART=PYRO_UART5
+            AUTOAIM_UART=PYRO_UART7
     )
     # 为 Engineer 自身添加宏定义
 
@@ -131,6 +133,7 @@ target_include_directories(Engineer
         ${CMAKE_CURRENT_SOURCE_DIR}/Gimbal/Application             # 云台应用层
         ${CMAKE_CURRENT_SOURCE_DIR}/Booster                        # 供弹模块
         ${CMAKE_CURRENT_SOURCE_DIR}/Booster/Application            # 供弹应用层
+        ${CMAKE_CURRENT_SOURCE_DIR}/Communication                  # UART 通信库
 
 )
 
