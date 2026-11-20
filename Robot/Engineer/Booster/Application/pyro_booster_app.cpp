@@ -18,6 +18,13 @@ constexpr uint32_t EVENT_BIT_ANTI_JAM_START      = (1 << 7);
 constexpr uint32_t EVENT_BIT_ANTI_JAM_STOP       = (1 << 8);
 
 static TaskHandle_t booster_task_handle           = nullptr;
+static pyro::quad_booster_t *quad_booster_ptr     = nullptr;
+static pyro::quad_booster_cmd_t *quad_booster_cmd_ptr = nullptr;
+static pyro::quad_deps_t *quad_deps_ptr           = nullptr;
+
+// 发弹间隔限制（1秒）
+static TickType_t last_fire_tick = 0;
+constexpr TickType_t FIRE_INTERVAL_MS = 1000;
 
 // ========== 导出给其他模块使用 ==========
 extern "C"
@@ -26,10 +33,12 @@ extern "C"
     {
         return &booster_task_handle;
     }
+
+    pyro::quad_booster_t* get_booster_instance()
+    {
+        return quad_booster_ptr;
+    }
 }
-static pyro::quad_booster_t *quad_booster_ptr     = nullptr;
-static pyro::quad_booster_cmd_t *quad_booster_cmd_ptr = nullptr;
-static pyro::quad_deps_t *quad_deps_ptr           = nullptr;
 
 static void deps_init();
 
@@ -66,10 +75,15 @@ extern "C"
             quad_booster_cmd_ptr->anti_jam = false;
         }
 
-        // 左拨杆下档切中档：单发
+        // 左拨杆下档切中档：单发（限制1秒间隔）
         if (notify_val & EVENT_BIT_FIRE)
         {
-            quad_booster_cmd_ptr->fire_count++;
+            TickType_t current_tick = xTaskGetTickCount();
+            if ((current_tick - last_fire_tick) >= pdMS_TO_TICKS(FIRE_INTERVAL_MS))
+            {
+                quad_booster_cmd_ptr->fire_count++;
+                last_fire_tick = current_tick;
+            }
         }
     }
 
@@ -159,10 +173,13 @@ void deps_init()
     quad_deps_ptr->pid_deps.fric_pid[3] =
         new pid_t(11.315f, 0.03f, 0.004f, 2.5f, 20.0f, pid_t::INTEGRAL_LIMIT);
 
-    // 拨弹轮 PID 参数
+    // 拨弹轮 PID 参数（提高速度降低发弹延迟）
+    // 位置环：提高 Kp 增强响应，适度 Ki 消除稳态误差，提高 Kd 抑制超调
+    // 输出限幅 24.0 rad/s，拨弹速度翻倍
     quad_deps_ptr->pid_deps.trigger_pos_pid =
-        new pid_t(12.5f, 1.0f, 0.1f, 2.0f, 12.0f, pid_t::INTEGRAL_LIMIT);
+        new pid_t(15.0f, 0.8f, 0.07f, 2.0f, 15.0f, pid_t::INTEGRAL_LIMIT);
+    // 速度环：提高 P 和 I 增强跟随性，提高 D 抑制抖动
     quad_deps_ptr->pid_deps.trigger_spd_pid =
-        new pid_t(1.0f, 1.0f, 0.003f, 1.5f, 7.0f, pid_t::INTEGRAL_LIMIT);
+        new pid_t(4.0f, 1.2f, 0.006f, 1.5f, 7.0f, pid_t::INTEGRAL_LIMIT);
 }
 } // namespace pyro

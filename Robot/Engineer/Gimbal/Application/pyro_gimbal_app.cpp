@@ -11,6 +11,7 @@
 #include "pyro_uart_message.h"
 #include "pyro_crc.h"
 #include "pyro_ins.h"
+#include "pyro_quad_booster.h"
 #include <cmath>
 
 using namespace pyro;
@@ -19,7 +20,15 @@ using namespace pyro;
 // Booster 任务句柄和事件定义（用于自瞄开火）
 // =========================================================
 extern "C" TaskHandle_t* get_booster_task_handle();
+extern "C" pyro::quad_booster_t* get_booster_instance();  // 获取 booster 实例指针
 constexpr uint32_t EVENT_BIT_FIRE = (1 << 1);
+
+// =========================================================
+// 自瞄发射触发模式配置
+// =========================================================
+// true = 使用视觉 fire 信号自动触发
+// false = 使用手动拨杆触发（与手动模式相同，左拨杆下档→中档）
+constexpr bool USE_VISION_FIRE_SIGNAL = true;
 
 // =========================================================
 // 阶跃测试配置（调试用）
@@ -52,16 +61,23 @@ uint8_t g_debug_aim_fire = 0;               // 接收到的 fire 值
 float g_debug_imu_yaw_rad = 0.0f;           // IMU Yaw（rad）
 float g_debug_imu_pitch_rad = 0.0f;         // IMU Pitch（rad）
 float g_debug_imu_roll_rad = 0.0f;          // IMU Roll（rad）
+
+// ========== 发弹延迟调试 ==========
+float g_debug_shoot_delay_ms = 0.0f;        // 发弹延迟（毫秒）
+float g_debug_fric_speed_diff_1 = 0.0f;    // 摩擦轮1速度差（m/s）
+float g_debug_fric_speed_diff_3 = 0.0f;    // 摩擦轮3速度差（m/s）
+float g_debug_fric_torque_1 = 0.0f;        // 摩擦轮1扭矩（N·m）
+float g_debug_fric_torque_2 = 0.0f;        // 摩擦轮2扭矩（N·m）
 // =========================================================
 
 // =========================================================
 // Autoaim 相关全局变量（框架已搭建，待 UART 通信库后启用）
 // =========================================================
-bool autoaim_enabled = false;               // 自瞄总使能标志
+bool autoaim_enabled = true;               // 自瞄总使能标志
 uint8_t auto_fire_flag = 0;                 // 自动开火标志
 float aim_yaw_rad = 0.0f;                   // 调试：自瞄 Yaw 角度
 float aim_pitch_rad = 0.0f;                 // 调试：自瞄 Pitch 角度
-float bullet_speed = 16.3f;                 // 当前弹速（m/s）
+float bullet_speed = 15.6f;                 // 当前弹速（m/s）从裁判系统回传
 uint8_t enemy_color = 0;                    // 敌方颜色（0=蓝 1=红）
 
 // UART 通信相关
@@ -111,16 +127,16 @@ static void aim2mcu_process()
         aim_yaw_rad = aim2mcu_msg.data.shoot_yaw;
     }
 
+    // Pitch 轴取反（适配坐标系方向）
     if (std::fabs(aim2mcu_msg.data.shoot_pitch) <= PI / 2.0f)
     {
-        screw_gimbal_cmd_ptr->aim_imu_pitch_rad = aim2mcu_msg.data.shoot_pitch;
-        aim_pitch_rad = aim2mcu_msg.data.shoot_pitch;
+        screw_gimbal_cmd_ptr->aim_imu_pitch_rad = -aim2mcu_msg.data.shoot_pitch;  // 取反
+        aim_pitch_rad = -aim2mcu_msg.data.shoot_pitch;
     }
 }
 
 /**
  * @brief 发送 MCU 状态给视觉
- * TODO: 待 UART 通信库添加后启用
  */
 static void mcu2aim_process()
 {
@@ -139,15 +155,32 @@ static void mcu2aim_process()
     g_debug_imu_pitch_rad = pitch_rad;
     g_debug_imu_roll_rad = roll_rad;
 
+    // 获取 Booster 实例并读取发射延迟
+    pyro::quad_booster_t* booster = get_booster_instance();
+    float shoot_delay_ms = 0.0f;
+    if (booster != nullptr)
+    {
+        shoot_delay_ms = booster->get_avg_launch_delay_ms();
+
+        // 更新调试变量：读取摩擦轮数据用于调试延迟检测
+        g_debug_fric_speed_diff_1 = booster->get_fric_speed_diff_1();
+        g_debug_fric_speed_diff_3 = booster->get_fric_speed_diff_3();
+        g_debug_fric_torque_1 = booster->get_fric_torque_1();
+        g_debug_fric_torque_2 = booster->get_fric_torque_2();
+    }
+
+    // 更新调试变量
+    g_debug_shoot_delay_ms = shoot_delay_ms;
+
     // 填充消息数据（匹配 InputData 结构）
     mcu2aim_msg.data.curr_yaw = yaw_rad;
-    mcu2aim_msg.data.curr_pitch = pitch_rad;
-    mcu2aim_msg.data.state = 0;                    // 机器人状态
-    mcu2aim_msg.data.autoaim = autoaim_enabled;    // 自瞄使能
-    mcu2aim_msg.data.fire = 0;                     // 开火标志（预留）
-    mcu2aim_msg.data.enemy_color = enemy_color;    // 敌方颜色
-    mcu2aim_msg.data.curr_speed = bullet_speed;    // 当前弹速
-    mcu2aim_msg.data.shoot_delay = 0;              // 射击延迟
+    mcu2aim_msg.data.curr_pitch = -pitch_rad;          // Pitch 取反，适配视觉坐标系
+    mcu2aim_msg.data.state = 0;                        // 机器人状态
+    mcu2aim_msg.data.autoaim = autoaim_enabled;        // 自瞄使能
+    mcu2aim_msg.data.fire = 0;                         // 开火标志（预留）
+    mcu2aim_msg.data.enemy_color = enemy_color;        // 敌方颜色
+    mcu2aim_msg.data.curr_speed = bullet_speed;        // 当前弹速（15.6 m/s，从裁判系统回传）
+    mcu2aim_msg.data.shoot_delay = static_cast<uint8_t>(shoot_delay_ms);  // 发射延迟（毫秒），视觉端会除以1000转换为秒
 
     // 添加 CRC16 校验
     append_crc16_check_sum(reinterpret_cast<uint8_t *>(&mcu2aim_msg),
@@ -269,18 +302,21 @@ void gimbal_dr162cmd()
             aim2mcu_process();
 
             // ========== 自瞄开火逻辑 ==========
-            // 检测视觉开火信号（上升沿触发）
-            static uint8_t last_auto_fire_flag = 0;
-            if (auto_fire_flag && !last_auto_fire_flag)
+            if constexpr (USE_VISION_FIRE_SIGNAL)
             {
-                // 触发拨弹盘射击
-                TaskHandle_t* booster_handle = get_booster_task_handle();
-                if (booster_handle != nullptr && *booster_handle != nullptr)
+                // 使用视觉 fire 信号自动触发
+                // fire = 1 时持续开火（受1秒间隔限制）
+                if (auto_fire_flag == 1)
                 {
-                    xTaskNotify(*booster_handle, EVENT_BIT_FIRE, eSetBits);
+                    // 触发拨弹盘射击
+                    TaskHandle_t* booster_handle = get_booster_task_handle();
+                    if (booster_handle != nullptr && *booster_handle != nullptr)
+                    {
+                        xTaskNotify(*booster_handle, EVENT_BIT_FIRE, eSetBits);
+                    }
                 }
             }
-            last_auto_fire_flag = auto_fire_flag;
+            // else: 使用手动拨杆触发（左拨杆 DOWN_TO_MID），已在 booster_app.cpp 中注册
             // ===================================
 
             // 如果启用阶跃测试，使用测试目标；否则使用视觉数据
@@ -336,11 +372,13 @@ void deps_init()
     screw_gimbal_deps->pid_deps.pitch_spd =
         new pid_t(11000.0f, 51.0f, 7.0f, 500.0f, 11000.0f, 20, 1, 10, 1, 4);
 
-    // Pitch 自瞄专用 PID
+    // Pitch 自瞄专用 PID（消除超调和抖动）
+    // 位置环：适中的 P，适度的 D，增加 I 提供平滑性
     screw_gimbal_deps->pid_deps.pitch_auto_pos =
-        new pid_t(12.5f, 0.027f, 0.01f, 0.1f, 10.0f, 15, 1, 5, 1, 4);
+        new pid_t(11.5f, 0.04f, 0.08f, 0.18f, 7.0f, 20, 1, 8, 1, 4);
+    // 速度环：平衡的 P，降低 D 减少抖动，适度 I 平滑输出
     screw_gimbal_deps->pid_deps.pitch_auto_spd =
-        new pid_t(11500.0f, 25.0f, 7.0f, 300.0f, 10000.0f, 10, 1, 5, 1, 4);
+        new pid_t(10000.0f, 30.0f, 35.0f, 350.0f, 9000.0f, 15, 1, 8, 1, 4);
 
     // Yaw 轴串级 PID
     screw_gimbal_deps->pid_deps.yaw_pos =

@@ -124,6 +124,10 @@ struct screw_gimbal_data_ctx_t
     float target_yaw_radps{0};
     float yaw_error_rad{0};
 
+    // 进入自瞄前的目标角度（用于自瞄初始化）
+    float last_target_pitch_before_autoaim{0};
+    float last_target_yaw_before_autoaim{0};
+
     float target_relative_yaw_rad{0};
     float relative_yaw_error_rad{0};
 

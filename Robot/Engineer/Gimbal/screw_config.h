@@ -52,7 +52,7 @@ constexpr float YAW_SLING_TORQUE_LIMIT        = 3.0f;  // Yaw 输出限幅
 constexpr float PITCH_MIN_RELATIVE_RAD   = -0.75f; // Pitch 轴最小角度 (rad)
 constexpr float PITCH_MAX_RELATIVE_RAD   = 0.15f;  // Pitch 轴最大角度 (rad)
 constexpr float PITCH_MIN_IMU_RAD        = -0.75f;  // IMU 读数最小角度 (rad)
-constexpr float PITCH_MAX_IMU_RAD        = -0.2f;  // IMU 读数最大角度 (rad)
+constexpr float PITCH_MAX_IMU_RAD        = 0.12f;  // IMU 读数最大角度 (rad)
 
 // =========================================================
 // 软限位与防抖动参数

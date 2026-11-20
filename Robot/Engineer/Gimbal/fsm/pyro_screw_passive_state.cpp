@@ -37,5 +37,10 @@ void screw_gimbal_t::fsm_passive_t::on_execute(owner *owner)
     owner->_ctx.motor.yaw->send_torque(0);
 }
 
-void screw_gimbal_t::fsm_passive_t::on_exit(owner *owner) {}
+void screw_gimbal_t::fsm_passive_t::on_exit(owner *owner)
+{
+    // 保存当前目标角度，供进入自瞄状态时使用
+    owner->_ctx.data.last_target_pitch_before_autoaim = owner->_ctx.data.target_pitch_rad;
+    owner->_ctx.data.last_target_yaw_before_autoaim = owner->_ctx.data.target_yaw_rad;
+}
 } // namespace pyro

@@ -34,3 +34,5 @@ build/
 .vscode
 !*/CMakeLists.txt
 !CMakeLists.txt
+scope-live.json
+.gitignore

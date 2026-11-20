@@ -198,7 +198,58 @@ void screw_gimbal_t::_gimbal_control()
 
 void screw_gimbal_t::_gimbal_autoaim_control()
 {
+    // ==========================================
+    // 动态 PID 参数调整（根据误差大小）
+    // ==========================================
+    float pitch_error = std::abs(_ctx.data.target_pitch_rad - _ctx.data.pitch_imu_rad);
+
+    // 定义误差分段阈值（rad）
+    constexpr float ERROR_LARGE = 0.12f;   // 大误差阈值（约 6.9°）
+    constexpr float ERROR_SMALL = 0.03f;   // 小误差阈值（约 1.7°）
+
+    // 位置环参数：基础值（大误差）-> 降低值（小误差）
+    float kp_pos = 11.5f;
+    float ki_pos = 0.04f;
+    float kd_pos = 0.08f;
+
+    // 速度环参数：基础值（大误差）-> 降低值（小误差）
+    float kp_spd = 10000.0f;
+    float ki_spd = 30.0f;
+    float kd_spd = 35.0f;
+
+    if (pitch_error < ERROR_SMALL)
+    {
+        // 小误差：适度降低 P 和 D，保持跟踪能力
+        kp_pos = 10.0f;
+        ki_pos = 0.06f;
+        kd_pos = 0.06f;
+
+        kp_spd = 8500.0f;
+        ki_spd = 40.0f;
+        kd_spd = 25.0f;
+    }
+    else if (pitch_error < ERROR_LARGE)
+    {
+        // 中等误差：线性插值
+        float ratio = (pitch_error - ERROR_SMALL) / (ERROR_LARGE - ERROR_SMALL);
+
+        kp_pos = 10.0f + ratio * (11.5f - 10.0f);
+        ki_pos = 0.06f - ratio * (0.06f - 0.04f);
+        kd_pos = 0.06f + ratio * (0.08f - 0.06f);
+
+        kp_spd = 8500.0f + ratio * (10000.0f - 8500.0f);
+        ki_spd = 40.0f - ratio * (40.0f - 30.0f);
+        kd_spd = 25.0f + ratio * (35.0f - 25.0f);
+    }
+    // else: 大误差使用基础参数
+
+    // 动态更新 PID 参数
+    _ctx.pid.pitch_auto_pos->set_gains(kp_pos, ki_pos, kd_pos);
+    _ctx.pid.pitch_auto_spd->set_gains(kp_spd, ki_spd, kd_spd);
+
+    // ==========================================
     // --- Pitch 串级控制 (自瞄模式基于绝对 IMU 角度) ---
+    // ==========================================
     _ctx.data.target_pitch_radps = _ctx.pid.pitch_auto_pos->calculate(
         _ctx.data.target_pitch_rad, _ctx.data.pitch_imu_rad);
 

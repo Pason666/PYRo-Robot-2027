@@ -10,9 +10,9 @@ namespace pyro
 {
 void screw_gimbal_t::fsm_active_t::autoaim_state_t::enter(owner *owner)
 {
-    // 切换到 Autoaim 模式时，直接对齐 IMU 绝对角，防止跳变
-    owner->_ctx.data.target_yaw_rad   = owner->_ctx.data.yaw_imu_rad;
-    owner->_ctx.data.target_pitch_rad = owner->_ctx.data.pitch_imu_rad;
+    // 切换到 Autoaim 模式时，使用进入前保存的目标角度，防止从 PASSIVE 无力状态进入时跳变
+    owner->_ctx.data.target_yaw_rad   = owner->_ctx.data.last_target_yaw_before_autoaim;
+    owner->_ctx.data.target_pitch_rad = owner->_ctx.data.last_target_pitch_before_autoaim;
 
     // 清除自瞄专用的绝对角度环和速度环积分
     owner->_ctx.pid.pitch_auto_pos->clear();
@@ -27,19 +27,19 @@ void screw_gimbal_t::fsm_active_t::autoaim_state_t::enter(owner *owner)
 
 void screw_gimbal_t::fsm_active_t::autoaim_state_t::execute(owner *owner)
 {
-    // 自瞄模式下，直接读取外部传入的绝对目标角度并进行限幅
-    if (fabs(owner->_ctx.cmd->target_pitch) < PI &&
-        fabs(owner->_ctx.cmd->target_yaw) < PI)
+    // 自瞄模式下，检查视觉数据有效性
+    constexpr float VISION_INVALID_THRESHOLD = 50.0f; // 视觉无目标时发送 100，设置阈值为 50
+
+    bool vision_valid = (fabs(owner->_ctx.cmd->target_pitch) < VISION_INVALID_THRESHOLD &&
+                         fabs(owner->_ctx.cmd->target_yaw) < VISION_INVALID_THRESHOLD);
+
+    if (vision_valid)
     {
+        // 视觉数据有效，更新目标角度
         owner->_ctx.data.target_pitch_rad = owner->_ctx.cmd->target_pitch;
         owner->_ctx.data.target_yaw_rad   = owner->_ctx.cmd->target_yaw;
     }
-    else
-    {
-        //视觉掉线或数据异常时的兜底步进
-        owner->_ctx.data.target_pitch_rad += owner->_ctx.cmd->pitch_delta_angle;
-        owner->_ctx.data.target_yaw_rad   += owner->_ctx.cmd->yaw_delta_angle;
-    }
+    // else: 视觉无目标(100)或数据异常，保持当前目标位置不变
 
     // ==========================================
     // 1. Pitch 绝对限幅 (使用 IMU 配置限幅阈值)

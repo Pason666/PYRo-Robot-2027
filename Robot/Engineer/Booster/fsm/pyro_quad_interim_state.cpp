@@ -58,8 +58,20 @@ void quad_booster_t::fsm_active_t::state_interim_t::execute(owner *owner)
         owner->_ctx.data.fric_err = false;
     }
 
-    owner->_trigger_position_control();
-    owner->_send_trigger_command();
+    // 防抖处理：如果位置误差很小，直接输出0扭矩，避免抖动
+    float error = owner->_ctx.data.target_trig_rad - owner->_ctx.data.current_trig_rad;
+    error = quad_booster_t::_normalize_angle(error);
+
+    if (abs(error) < 0.15f)  // 死区 0.15 rad (约8.6度)
+    {
+        owner->_ctx.data.out_trig_torque = 0.0f;
+        owner->_send_trigger_command();
+    }
+    else
+    {
+        owner->_trigger_position_control();
+        owner->_send_trigger_command();
+    }
 }
 
 void quad_booster_t::fsm_active_t::state_interim_t::exit(owner *owner)

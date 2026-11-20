@@ -66,9 +66,9 @@ struct quad_booster_data_ctx_t
     uint8_t internal_reset_count{0};
     uint8_t internal_shoot_data_reset_count{0};
 
-    float launch_delay_timer[3]{};
+    float launch_delay_timer[3]{220.0f, 220.0f, 220.0f};
     float signal_timer{0};
-    float avg_launch_delay{0};
+    float avg_launch_delay{220.0f};
     uint32_t fresh_timer{0};
     uint8_t fire_count{0};
 
@@ -168,6 +168,30 @@ class quad_booster_t final
     void _launch_delay_calculate();
     void _reset_active_shoot_data();
     [[nodiscard]] bool _use_deploy_data() const;
+
+  public:
+    // 获取平均发射延迟（毫秒），用于视觉通信
+    [[nodiscard]] float get_avg_launch_delay_ms() const { return _ctx.data.avg_launch_delay; }
+
+    // 获取摩擦轮调试数据
+    [[nodiscard]] float get_fric_speed_diff_1() const
+    {
+        return _ctx.shoot_data.fric1_mps - fabs(_ctx.data.current_fric_mps[1]);
+    }
+    [[nodiscard]] float get_fric_speed_diff_3() const
+    {
+        return _ctx.shoot_data.fric1_mps - fabs(_ctx.data.current_fric_mps[3]);
+    }
+    [[nodiscard]] float get_fric_torque_1() const
+    {
+        return fabs(_ctx.data.current_fric_torque[1]);
+    }
+    [[nodiscard]] float get_fric_torque_2() const
+    {
+        return fabs(_ctx.data.current_fric_torque[2]);
+    }
+
+  private:
 
     // 角度归一化辅助函数
     static float _normalize_angle(float angle);

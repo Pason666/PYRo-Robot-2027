@@ -199,23 +199,26 @@ void quad_booster_t::_launch_delay_calculate()
 
     _ctx.data.fresh_timer++;
 
-    if (shoot_data.fric1_mps - std::abs(_ctx.data.current_fric_mps[1]) > 0.8f &&
-        shoot_data.fric1_mps - std::abs(_ctx.data.current_fric_mps[3]) > 0.8f &&
-        std::abs(_ctx.data.current_fric_torque[1]) > 3.0f &&
-        std::abs(_ctx.data.current_fric_torque[2]) > 3.0f &&
+    // 放宽检测条件：速度差从 0.8 降到 0.5，扭矩从 3.0 降到 2.0
+    if (shoot_data.fric1_mps - std::abs(_ctx.data.current_fric_mps[1]) > 0.5f &&
+        shoot_data.fric1_mps - std::abs(_ctx.data.current_fric_mps[3]) > 0.5f &&
+        std::abs(_ctx.data.current_fric_torque[1]) > 2.0f &&
+        std::abs(_ctx.data.current_fric_torque[2]) > 2.0f &&
         _ctx.data.fresh_timer > 220)
     {
         _ctx.data.launch_delay_timer[2] = _ctx.data.launch_delay_timer[1];
         _ctx.data.launch_delay_timer[1] = _ctx.data.launch_delay_timer[0];
+        // 放宽延迟时间判定：从 200ms 增加到 500ms
         _ctx.data.launch_delay_timer[0] =
-            (dwt_drv_t::get_timeline_ms() - _ctx.data.signal_timer > 200.0f)
+            (dwt_drv_t::get_timeline_ms() - _ctx.data.signal_timer > 500.0f)
                 ? _ctx.data.avg_launch_delay
                 : (dwt_drv_t::get_timeline_ms() - _ctx.data.signal_timer +
                    20.0f);
 
-        _ctx.data.avg_launch_delay = 0.7f * _ctx.data.launch_delay_timer[0] +
-                                     0.2f * _ctx.data.launch_delay_timer[1] +
-                                     0.1f * _ctx.data.launch_delay_timer[2];
+        // 增强稳定性：调整滑动平均权重，降低最新值权重，增加历史数据权重
+        _ctx.data.avg_launch_delay = 0.5f * _ctx.data.launch_delay_timer[0] +
+                                     0.3f * _ctx.data.launch_delay_timer[1] +
+                                     0.2f * _ctx.data.launch_delay_timer[2];
         _ctx.data.fresh_timer = 0;
         _ctx.data.fire_count++;
     }
